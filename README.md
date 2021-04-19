@@ -13,7 +13,7 @@ First create the network infrastructure. One way to do it is to deploy using [th
 #### Deploy DCM4CHEE Stack
 
 Next the DCM4CHEE stack can be deployed using this 1-click deployment:  
-[![launchstackbutton](Figures/launchstack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/template?stackName=dcm4cheeec2stack&templateURL=https://dcm4chee-on-aws.s3.amazonaws.com/dcm4chee-arc-ec2-psql.yml)
+[![launchstackbutton](figures/launchstack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/template?stackName=dcm4cheeec2stack&templateURL=https://dcm4chee-on-aws.s3.amazonaws.com/dcm4chee-arc-ec2-psql.yml)
 
 You can connect to the EC2 instance that host the dcm4chee archive server container using either SSH client (login as ec2-user) or Session Manager (login as ssm-user). Once connected, you can unzip the pre-downloaded dcm4chee binary zipped file to run command line scripts:
 
