@@ -24,6 +24,11 @@ To deploy each of these solutions you will require:
 
 These solutions were developed by AWS Solutions Architects and are provided as [AWS Samples](https://github.com/aws-samples/).
 
+## Security
+
+See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
+
+
 ## License
 
-This project is licensed under the [MIT-0](https://github.com/aws/mit-0) License - see the LICENSE file for details
+This project is licensed under the [MIT-0](https://github.com/aws/mit-0) License - see the [LICENSE](LICENSE) file for details

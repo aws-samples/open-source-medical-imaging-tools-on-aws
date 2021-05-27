@@ -16,12 +16,12 @@ Both the EFS file store, and RDS database, are encrypted at rest, and the DICOMW
 
 ### Create a VPC
 
-This solution requires a pre-existing * An existing [Virtual Private Cloud](https://aws.amazon.com/vpc) (VPC) within your account.  It is recommended that the solution is deployed across multiple availability zones (AZs), and a suitable multi-AZ VPC for this purpose can be created by deploying the AWS [Modular and Scalable VPC Architecture](https://aws.amazon.com/quickstart/architecture/vpc/) QuickStart.
+This solution requires a pre-existing [Virtual Private Cloud](https://aws.amazon.com/vpc) (VPC) within your account.  It is recommended that the solution is deployed across multiple availability zones (AZs), and a suitable multi-AZ VPC for this purpose can be created by deploying the AWS [Modular and Scalable VPC Architecture](https://aws.amazon.com/quickstart/architecture/vpc/) QuickStart.
 
 ### Deploy the Solution
 
 The deployment process is fully automated and performed by [AWS CloudFormation](https://aws.amazon.com/cloudformation) running the template file [orthanc-rds-template.yaml](https://github.com/aws-samples/open-source-medical-imaging-tools-on-aws/blob/main/orthanc/orthanc-rds-template.yaml).  This can be accomplished in three ways:
-* Log in to the AWS Console and click the link below.  This will open the AWS CloudFormation console with the template file pre-filled.
+* Log in to the AWS Console, and then click the link below.  This will open the AWS CloudFormation console with the template file pre-filled.
 
 [![launchstackbutton](figures/launchstack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/template?stackName=dcm4cheeec2stack&templateURL=https://orthanc-on-aws.s3.amazonaws.com/latest/orthanc-rds-template.yaml)
 
