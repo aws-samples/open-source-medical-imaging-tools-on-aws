@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: CloudFormation template to deploy DCM4CHEE on AWS
+Description: (WWPS-AMC-DCM4CHEE) CloudFormation template to deploy DCM4CHEE on AWS
 
 Metadata:
   'AWS::CloudFormation::Interface':

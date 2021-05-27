@@ -1,0 +1,8 @@
+dicomweb-client
+jq
+jsonschema
+progress
+pydicom
+pytest
+pytest-html
+requests
