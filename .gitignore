@@ -1,0 +1,3 @@
+orthanc/tests/data/
+*EXCLUDE*
+**/.DS_Store

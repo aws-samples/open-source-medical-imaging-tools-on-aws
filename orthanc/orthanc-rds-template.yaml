@@ -17,6 +17,9 @@ Metadata:
           - PrivateSubnet1Id
           - PrivateSubnet2Id
           - SecurityGroupIngressCIDR
+      - Label:
+          default: TLS and Encryption (Optional)
+        Parameters:
           - ExistingHostedZoneId
           - FullDomainName
       - Label:
@@ -52,8 +55,8 @@ Metadata:
           - OrthancUser
           - OrthancPassword
           - EnableDICOMWebPlugin
-          - EnableOrthancWebViewer
-          - EnableStoneWebViewer
+          - EnableOrthancWebViewerPlugin
+          - EnableStoneWebViewerPlugin
 
 Parameters:
   Namespace:
@@ -68,10 +71,11 @@ Parameters:
     Description: will the containers be hosted on ECS EC2 or Fargate
     AllowedValues: [Y, N]
   ExistingHostedZoneId:
-    Description: Existing HostedZone for Registered Domain used for ACM Certificate
-    Type: AWS::Route53::HostedZone::Id
+    Description: (Optional) Existing HostedZone for Registered Domain used for ACM Certificate.  Leave blank to deploy solution without TLS.
+    Type: String
+    # Type: AWS::Route53::HostedZone::Id
   FullDomainName:
-    Description: Enter the Fully Qualified Domain Nanme for ACM Certificate 
+    Description: (Optional) Fully Qualified Domain Nanme for ACM Certificate.  Leave blank to deploy solution without TLS.
     Type: String
   ContainerImageUrl:
     Description: The url of a docker image that contains the application process that will handle the traffic for this service
@@ -203,11 +207,13 @@ Parameters:
     AllowedValues: [Y, N]
 
 Conditions:
-  runContainerOnEC2: !Equals [ !Ref ContainerOnEC2, Y ]
-  CreateBucket: !Equals [ !Ref UseExistingLogBucket, "No" ]
-  DoEnableDICOMWebPlugin: !Equals [ !Ref EnableDICOMWebPlugin, Y]
-  DoEnableOrthancWebViewerPlugin: !Equals [ !Ref EnableOrthancWebViewerPlugin, Y]
-  DoEnableStoneWebViewerPlugin: !Equals [ !Ref EnableStoneWebViewerPlugin, Y]
+  runContainerOnEC2: !Equals [!Ref ContainerOnEC2, Y]
+  CreateBucket: !Equals [!Ref UseExistingLogBucket, "No"]
+  NoDomain: !Equals [!Ref FullDomainName, ""]
+  UseDomain: !Not [Condition: NoDomain]
+  DoEnableDICOMWebPlugin: !Equals [!Ref EnableDICOMWebPlugin, Y]
+  DoEnableOrthancWebViewerPlugin: !Equals [!Ref EnableOrthancWebViewerPlugin, Y]
+  DoEnableStoneWebViewerPlugin: !Equals [!Ref EnableStoneWebViewerPlugin, Y]
 
 Mappings:
   AWSRegionToAMI:
@@ -530,6 +536,7 @@ Resources:
               Service: delivery.logs.amazonaws.com
 
   HostedZoneRecord:
+    Condition: UseDomain
     DependsOn: 
       - LoadBalancerSSLCert
     Type: AWS::Route53::RecordSet
@@ -542,6 +549,7 @@ Resources:
         HostedZoneId: !GetAtt 'OrthancLoadBalancer.CanonicalHostedZoneID'
 
   LoadBalancerSSLCert:
+    Condition: UseDomain
     Type: AWS::CertificateManager::Certificate
     Properties:
       DomainName: !Ref FullDomainName
@@ -553,9 +561,9 @@ Resources:
 
   OrthancService:
     Type: AWS::ECS::Service
-    DependsOn:
-      - OrthancTCP8042Listener
-      - OrthancTCP4242Listener
+    # DependsOn:
+    #   - !If [UseDomain, 'OrthancTCP8042HTTPSListener', 'OrthancTCP8042HTTPListener']
+    #   - OrthancTCP4242Listener
     Properties:
       Cluster: !Ref ECSCluster
       DeploymentConfiguration:
@@ -590,6 +598,13 @@ Resources:
           Value: !Sub "${Namespace}-orthanconaws"
         - Key: com.docker.compose.service
           Value: orthanc
+        - Key: depends-on-8042
+          Value: !If 
+            - UseDomain
+            - !GetAtt OrthancTCP8042HTTPSListener.ListenerArn
+            - !GetAtt OrthancTCP8042HTTPListener.ListenerArn
+        - Key: depends-on-4242
+          Value: !GetAtt OrthancTCP4242Listener.ListenerArn
       TaskDefinition: !Ref OrthancTaskDefinition
 
   OrthancServiceDiscoveryEntry:
@@ -604,7 +619,8 @@ Resources:
       Name: !Sub "${Namespace}-orthanc-sdservice"
       NamespaceId: !Ref CloudMap
 
-  OrthancTCP8042Listener:
+  OrthancTCP8042HTTPSListener:
+    Condition: UseDomain
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       Certificates:
@@ -617,6 +633,19 @@ Resources:
       LoadBalancerArn: !Ref OrthancLoadBalancer
       Port: 8042
       Protocol: TLS
+
+  OrthancTCP8042HTTPListener:
+    Condition: NoDomain
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - ForwardConfig:
+            TargetGroups:
+              - TargetGroupArn: !Ref OrthancTCP8042TargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref OrthancLoadBalancer
+      Port: 8042
+      Protocol: TCP
 
   OrthancTCP8042TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -645,7 +674,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Port: 4242
-      HealthCheckPort: 8042
+      HealthCheckPort: '8042'
       Protocol: TCP
       Tags:
         - Key: project
@@ -886,7 +915,10 @@ Resources:
 Outputs:
   OrthancEndpoint:
     Description: The URL of the reverse proxy for Orthanc web server endpoint
-    Value: !Sub "https://${FullDomainName}:8042"
+    Value: !If 
+      - UseDomain
+      - !Sub "https://${FullDomainName}:8042"
+      - !Sub "http://${OrthancLoadBalancer.DNSName}:8042" 
   LogBucket:
     Description: Log bucket name
     Value: !GetAtt LogBucketName.Value
