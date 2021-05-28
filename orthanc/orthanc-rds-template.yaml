@@ -73,7 +73,6 @@ Parameters:
   ExistingHostedZoneId:
     Description: (Optional) Existing HostedZone for Registered Domain used for ACM Certificate.  Leave blank to deploy solution without TLS.
     Type: String
-    # Type: AWS::Route53::HostedZone::Id
   FullDomainName:
     Description: (Optional) Fully Qualified Domain Nanme for ACM Certificate.  Leave blank to deploy solution without TLS.
     Type: String
@@ -106,18 +105,18 @@ Parameters:
     Default: "No"
   ExistingLogBucketName:
     Type: String
-    Description: (Only if 'No' answered above) Name of bucket to create for logging (must be S3 compatible)
     Default: existing-log-bucket-name
-    AllowedPattern: "((?=^.{3,63}$)(?!^(\\d+\\.)+\\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\\-]*[a-z0-9])\\.)*([a-z0-9]|[a-z0-9][a-z0-9\\-]*[a-z0-9])$)|(^.{0}$))"
+    Description: (Optional, Only if 'No' answered above) Name of bucket to create for logging (must be S3 compatible)
     ConstraintDescription: Must be a bucket name respecting S3 bucket naming conventions
   KeyName:
-    Type: AWS::EC2::KeyPair::KeyName
-    Description: Name of an existing EC2 KeyPair to enable SSH access to the ECS instances. OPTIONAL only for EC2 hosts.
+    Type: String
+    Description: (Optional, only for EC2 hosts) Name of an existing EC2 KeyPair to enable SSH access to the ECS instances.
   InstanceType:
-    Description: EC2 instance type. OPTIONAL only for EC2 hosts.
+    Description: (Optional, only for EC2 hosts) EC2 instance type.
     Type: String
     Default: m4.large
     AllowedValues: [
+      '',
       t2.large, t2.xlarge, t2.2xlarge,
       t3.large, t3.xlarge, t3.2xlarge,
       m4.large, m4.xlarge, m4.2xlarge, m4.4xlarge, m4.8xlarge,
@@ -127,9 +126,9 @@ Parameters:
       r4.large, r4.xlarge, r4.2xlarge, r4.4xlarge, r4.8xlarge,
       r5.large, r5.xlarge, r5.2xlarge, r5.4xlarge, r5.8xlarge
     ]
-    ConstraintDescription: Please choose a valid instance type.
+    ConstraintDescription: 'Please choose a valid instance type: https://aws.amazon.com/ec2/instance-types/'
   NumberofEC2Instances:
-    Description: Number of EC2 instance to run container in ECS cluster. OPTIONAL only for EC2 hosts.
+    Description: (Optional, only for EC2 hosts) Number of EC2 instance to run container in ECS cluster.
     Type: Number
     Default: 1
   NumberofContainers:
@@ -137,7 +136,7 @@ Parameters:
     Type: Number
     Default: 1
   OrthancContainerCPU:
-    Description: The number of cpu units the Amazon ECS container agent will reserve for the container.
+    Description: The number of CPU units the Amazon ECS container agent will reserve for the container.
     Type: Number
     Default: 2048
     AllowedValues: [256, 512, 1024, 2048, 4096]
