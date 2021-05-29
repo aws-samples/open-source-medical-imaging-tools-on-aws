@@ -1,3 +1,4 @@
 orthanc/tests/data/
 *EXCLUDE*
 **/.DS_Store
+orthanc/tests/__pycache__/

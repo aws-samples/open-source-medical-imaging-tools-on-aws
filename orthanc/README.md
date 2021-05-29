@@ -29,7 +29,7 @@ To enable TLS transport, provide the fully qualified domain name in the paramete
 The deployment process is fully automated and performed by [AWS CloudFormation](https://aws.amazon.com/cloudformation) running the template file [orthanc-rds-template.yaml](https://github.com/aws-samples/open-source-medical-imaging-tools-on-aws/blob/main/orthanc/orthanc-rds-template.yaml).  Deployment takes around 15 minutes and can be accomplished in three ways:
 * Log in to the AWS Console, and then click the link below.  This will open the AWS CloudFormation console with the template file pre-filled.
 
-[![launchstackbutton](figures/launchstack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/template?stackName=orthanc&templateURL=https://orthanc-on-aws.s3.amazonaws.com/latest/orthanc-rds-template.yaml)
+[![launchstackbutton](figures/launchstack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/template?stackName=orthanc&templateURL=https://orthanc-on-aws.s3.amazonaws.com/orthanc-rds-template.yaml)
 
 * Clone this repository, and from the AWS CloudFormation console, select and launch the `orthanc-rds-template.yaml` template.  This is useful if you wish to modify the template before deployment.
 * Deploy from the [AWS Command Line Interface](https://aws.amazon.com/cli/).  To do this, edit the configuration file `orthanc-config.json` with the values that will be supplied to the CloudFormation template, then launch the CloudFormation stack with the command `aws cloudformation create-stack --cli-input-json file://orthanc-config.json`. This approach is useful during experimentation, to speed the repeated deployment of the solution.
