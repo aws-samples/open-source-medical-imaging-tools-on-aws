@@ -1,0 +1,1468 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: CloudFormation template to deploy DCM4CHEE on AWS
+
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: 'DCM4CHH'
+        Parameters:
+          - AdminUSER
+          - AdminPASSWORD
+      - Label:
+          default: 'Network Infrastructure'
+        Parameters:
+          - ParameterVPCId
+          - PublicSubnet1Id
+          - PublicSubnet2Id
+          - PrivateSubnet1Id
+          - PrivateSubnet2Id
+          - SecurityGroupIngressCIDR
+      - Label:
+          default: 'ECS'
+        Parameters:
+          - LBAccessLogBucketName
+          - KeyName
+          - InstanceType
+          - EC2InstanceCount
+          - NumberofARCHIVEContainers
+          - NumberofLDAPContainers
+          - NumberofKeycloakContainers
+          - ArchiveContainerCPU
+          - ArchiveContainerMemory
+          - LDAPContainerCPU
+          - LDAPContainerMemory
+          - KeycloakContainerCPU
+          - KeycloakContainerMemory
+      - Label:
+          default: 'EFS Persistent Storage'
+        Parameters:
+          - EFSNameTag
+          - EnableEFSBackup
+          - EFSStorageInfrequentAcessAfter
+      - Label:
+          default: 'RDS Database'
+        Parameters:
+          - RDSDBInstanceClass
+          - RDSDBStorageType
+          - RDSDBAllocatedStorage
+          - RDSDBUserName
+          - RDSDBBackupRetentionDays
+          - IsDBMultiAZ
+
+
+Parameters:
+  AdminUSER:
+    Type: String
+    Description: DCM4CHEE Login User
+  AdminPASSWORD:
+    Type: String
+    Description: DCM4CHEE Login Password
+    NoEcho: true
+  ParameterVPCId:
+    Description: ID of the VPC
+    Type: AWS::EC2::VPC::Id
+  PublicSubnet1Id:
+    Description: PublicSubnetId, for Availability Zone 1 in the region in your VPC
+    Type: AWS::EC2::Subnet::Id
+  PublicSubnet2Id:
+    Description: PublicSubnetId, for Availability Zone 2 in the region in your VPC
+    Type: AWS::EC2::Subnet::Id
+  PrivateSubnet1Id:
+    Description: PrivateSubnetId, for Availability Zone 1 in the region in your VPC
+    Type: AWS::EC2::Subnet::Id
+  PrivateSubnet2Id:
+    Description: PrivateSubnetId, for Availability Zone 2 in the region in your VPC
+    Type: AWS::EC2::Subnet::Id
+  SecurityGroupIngressCIDR:
+    Type: String
+    Default: '0.0.0.0/0'
+  LBAccessLogBucketName:
+    Type: String
+    Default: dcm4chee-ecs-nlb-accesslog
+  NumberofARCHIVEContainers:
+    Description: Number of docker containers for DCM4CHEE to run tasks in ECS cluster
+    Type: Number
+    Default: 1
+  EC2InstanceCount:
+    Description: Number of EC2 instances to host DCM4CHEE on ECS. Minimum 1 and maximum 4.
+    Type: Number
+    Default: 1
+  NumberofLDAPContainers:
+    Description: Number of docker containers for LDAP to run tasks in ECS cluster
+    Type: Number
+    Default: 1
+  NumberofKeycloakContainers:
+    Description: Number of docker containers for LDAP to run tasks in ECS cluster
+    Type: Number
+    Default: 1
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the ECS instances.
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: m4.large
+    AllowedValues: [t2.large, m3.large,
+      m3.xlarge, m3.2xlarge, m4.large, m4.xlarge, m4.2xlarge, m4.4xlarge, m4.10xlarge,
+      c4.large, c4.xlarge, c4.2xlarge, c4.4xlarge, c4.8xlarge, c3.large, c3.xlarge,
+      c3.2xlarge, c3.4xlarge, c3.8xlarge, r3.large, r3.xlarge, r3.2xlarge, r3.4xlarge,
+      r3.8xlarge, i2.xlarge, i2.2xlarge, i2.4xlarge, i2.8xlarge]
+    ConstraintDescription: Please choose a valid instance type.
+  ArchiveContainerCPU:
+    Description: The number of cpu units the Amazon ECS container agent will reserve for the container.
+    Type: Number
+    Default: 2048
+    AllowedValues: [256, 512, 1024, 2048, 4096]
+  ArchiveContainerMemory:
+    Description: The amount (in MiB) of memory to present to the container. . Memory should be at least two times of vCPU unit according to documentation.
+    Type: Number
+    Default: 4096
+    AllowedValues: [512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 9216, 10240, 11264, 12288, 13312, 14336, 15360, 16384, 30720]
+  LDAPContainerCPU:
+    Description: The number of cpu units the Amazon ECS container agent will reserve for the container.
+    Type: Number
+    Default: 2048
+    AllowedValues: [256, 512, 1024, 2048, 4096]
+  LDAPContainerMemory:
+    Description: The amount (in MiB) of memory to present to the container. . Memory should be at least two times of vCPU unit according to documentation.
+    Type: Number
+    Default: 4096
+    AllowedValues: [512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 9216, 10240, 11264, 12288, 13312, 14336, 15360, 16384, 30720]
+  KeycloakContainerCPU:
+    Description: The number of cpu units the Amazon ECS container agent will reserve for the container.
+    Type: Number
+    Default: 2048
+    AllowedValues: [256, 512, 1024, 2048, 4096]
+  KeycloakContainerMemory:
+    Description: The amount (in MiB) of memory to present to the container. . Memory should be at least two times of vCPU unit according to documentation.
+    Type: Number
+    Default: 4096
+    AllowedValues: [512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 9216, 10240, 11264, 12288, 13312, 14336, 15360, 16384, 30720]
+  EFSNameTag:
+    Description: The name of the EFS volume
+    Type: String
+    MinLength: '1'
+    Default: myEFSvolume
+  EnableEFSBackup:
+    Type: String
+    Description: whether enable EFS backup or not. EFS backup has extra associated cost.
+    Default: ENABLED
+    AllowedValues: [ENABLED, DISABLED]
+  EFSStorageInfrequentAcessAfter:
+    Type: String
+    Description: A value that describes the period of time that a file is not accessed, after which it transitions to the IA storage class.
+    Default: AFTER_90_DAYS
+    AllowedValues: [AFTER_14_DAYS, AFTER_30_DAYS, AFTER_60_DAYS, AFTER_7_DAYS, AFTER_90_DAYS]
+  RDSDBInstanceClass:
+    Default: db.t3.medium
+    Description: Database Instance Class. For more information, go to https://aws.amazon.com/rds/instance-types/
+    Type: String
+    AllowedValues:
+      - db.t3.medium
+      - db.r4.large
+      - db.r4.xlarge
+      - db.r4.2xlarge
+      - db.r4.4xlarge
+      - db.r4.8xlarge
+      - db.r4.16xlarge
+      - db.r5.large
+      - db.r5.xlarge
+      - db.r5.2xlarge
+      - db.r5.4xlarge
+      - db.r5.8xlarge
+      - db.r5.12xlarge
+      - db.r5.16xlarge
+      - db.r5.24xlarge
+  RDSDBStorageType:
+    Type: String
+    Default: "gp2"
+  RDSDBAllocatedStorage:
+    Type: Number
+    Default: 20
+  RDSDBUserName:
+    Type: String
+    Description: RDS PostgreSQL database username
+    Default: postgres
+    NoEcho: true
+  IsDBMultiAZ:
+    Type: String
+    Default: False
+  RDSDBBackupRetentionDays:
+    Type: Number
+    Default: 30
+    Description: The number of days for which automated backups are retained. Setting this parameter to a positive number (from 1 to 35) enables backups. Setting this parameter to 0 disables automated backups. 
+
+Mappings:
+  AWSRegionToAMI:
+    us-east-1:
+      AMIID: ami-0c1f575380708aa63
+    us-east-2:
+      AMIID: ami-015a2afe7e1a8af56
+    us-west-1:
+      AMIID: ami-032a827d612b78a50
+    us-west-2:
+      AMIID: ami-05edb14e89a5b98f3
+    ap-northeast-1:
+      AMIID: ami-06ee72c3360fd7fad
+    ap-northeast-2:
+      AMIID: ami-0cfc5eb79eceeeec9
+    ap-south-1:
+      AMIID: ami-078902ae8103daac8
+    ap-southeast-1:
+      AMIID: ami-09dd721a797640468
+    ap-southeast-2:
+      AMIID: ami-040bd2e2325535b3d
+    ca-central-1:
+      AMIID: ami-0a06b44c462364156
+    eu-central-1:
+      AMIID: ami-09509e8f8dea8ab83
+    eu-north-1:
+      AMIID: ami-015b157d082fd4e0d
+    eu-west-1:
+      AMIID: ami-0489c3efb4fe85f5d
+    eu-west-2:
+      AMIID: ami-037dd70536680c11f
+    eu-west-3:
+      AMIID: ami-0182381900083ba64
+    sa-east-1:
+      AMIID: ami-05313c3a9e9148109
+
+  RegionELBAccountIdMap:
+    us-east-1:
+      AccountId: '127311923021'
+    us-west-1:
+      AccountId: '027434742980'
+    us-west-2:
+      AccountId: '797873946194'
+    eu-west-1:
+      AccountId: '156460612806'
+    ap-northeast-1:
+      AccountId: '582318560864'
+    ap-northeast-2:
+      AccountId: '600734575887'
+    ap-southeast-1:
+      AccountId: '114774131450'
+    ap-southeast-2:
+      AccountId: '783225319266'
+    ap-south-1:
+      AccountId: '718504428378'
+    us-east-2:
+      AccountId: '033677994240'
+    sa-east-1:
+      AccountId: '507241528517'
+    cn-north-1:
+      AccountId: '638102146993'
+    eu-central-1:
+      AccountId: '054676820928'
+      
+Resources:
+  CloudMap:
+    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
+    Properties:
+      Description: Service Map for dcm4chee-arc-psql
+      Name: dcm4chee-arc-psql.local
+      Vpc: !Ref ParameterVPCId
+  ArcServiceDiscoveryEntry:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Description: '"arc" service discovery entry in Cloud Map'
+      DnsConfig:
+        DnsRecords:
+        - TTL: 60
+          Type: A
+        RoutingPolicy: MULTIVALUE
+      Name: arc
+      NamespaceId: !Ref CloudMap
+  LdapServiceDiscoveryEntry:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Description: '"ldap" service discovery entry in Cloud Map'
+      DnsConfig:
+        DnsRecords:
+        - TTL: 60
+          Type: A
+        RoutingPolicy: MULTIVALUE
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: ldap
+      NamespaceId: !Ref CloudMap
+  KeycloakServiceDiscoveryEntry:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Description: '"keycloak" service discovery entry in Cloud Map'
+      DnsConfig:
+        DnsRecords:
+        - TTL: 60
+          Type: A
+        RoutingPolicy: MULTIVALUE
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: keycloak
+      NamespaceId:
+        Ref: CloudMap
+  
+  DefaultSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref ParameterVPCId
+      GroupDescription: dcm4chee-arc-psql Security Group for default network
+      GroupName: DefaultSecurityGroup
+      Tags:
+        - Key: project
+          Value: dcm4chee-arc-psql
+        - Key: network
+          Value: default
+  DefaultSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Allow communication within network default
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: "-1"
+      SourceSecurityGroupId: !Ref DefaultSecurityGroup
+  Default8080Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: arc:8080/tcp on default network
+      FromPort: 8080
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 8080
+  Default8443Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: arc:8443/tcp on default network
+      FromPort: 8443
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 8443
+  Default8787Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: arc:8787/tcp on default network
+      FromPort: 8787
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 8787
+  Default2762Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: arc:2762/tcp on default network
+      FromPort: 2762
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 2762
+  Default2575Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: arc:2575/tcp on default network
+      FromPort: 2575
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 2575
+  Default12575Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: arc:12575/tcp on default network
+      FromPort: 12575
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 12575
+  Default9990Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: arc:9990/tcp on default network
+      FromPort: 9990
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 9990
+  Default9993Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: arc:9993/tcp on default network
+      FromPort: 9993
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 9993
+  Default11112Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: arc:11112/tcp on default network
+      FromPort: 11112
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 11112
+  Default389Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: ldap:389/tcp on default network
+      FromPort: 389
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 389
+  Default636Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: ldap:636/tcp on default network
+      FromPort: 636
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 636
+  Default8880Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: arc:8880/tcp on default network
+      FromPort: 8880
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 8880
+  Default8843Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: arc:8843/tcp on default network
+      FromPort: 8843
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 8843
+  Default8990Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: arc:8990/tcp on default network
+      FromPort: 8990
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 8990
+  Default8993Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref SecurityGroupIngressCIDR
+      Description: arc:8993/tcp on default network
+      FromPort: 8993
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: TCP
+      ToPort: 8993
+  EFSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DCM4CHEE EFS Security Group
+      VpcId: !Ref 'ParameterVPCId'
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref 'DefaultSecurityGroup'
+          Description: efs:2049/tcp
+          FromPort: 2049
+          IpProtocol: TCP
+          ToPort: 2049
+      Tags:
+        - Key: project
+          Value: dcm4chee-arc-psql
+        - Key: network
+          Value: default
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DCM4CHEE RDS Security Group
+      VpcId: !Ref 'ParameterVPCId'
+      GroupName: !Join ['', ['RDSSecurityGroup', !Ref 'AWS::StackName', !Ref 'AWS::AccountId', !Ref 'AWS::Region']]
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref 'DefaultSecurityGroup'
+          Description: postgres:5432/tcp
+          FromPort: 5432
+          IpProtocol: TCP
+          ToPort: 5432
+      Tags:
+        - Key: project
+          Value: dcm4chee-arc-psql
+        - Key: network
+          Value: default
+      
+
+  RDSDatabaseSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Join ['', ['RDSDatabaseSecret', !Ref 'AWS::StackName', !Ref 'AWS::AccountId', !Ref 'AWS::Region']]
+      Description: !Join ['', ['RDS Database Master User Secret ', 'for CloudFormation Stack ', !Ref 'AWS::StackName']]
+      Tags:
+        - Key: project
+          Value: dcm4chee-on-aws
+      GenerateSecretString:
+        SecretStringTemplate: !Join ['', ['{"username": "', postgres, '"}']]
+        GenerateStringKey: "password"
+        ExcludeCharacters: '"@/\'
+        PasswordLength: 16
+  SMSecretRDSDBAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref RDSDatabaseSecret
+      TargetId: !Ref RDSInstance
+      TargetType: AWS::RDS::DBInstance
+  DataBaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: DBSubnetGroup for Aurora RDS instances
+      SubnetIds:
+        - !Ref PrivateSubnet1Id
+        - !Ref PrivateSubnet2Id
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Retain        ## or Delete/Snapshot
+    Properties:
+      DBInstanceIdentifier: dcm4chee-instance
+      DBInstanceClass: !Ref RDSDBInstanceClass
+      StorageType: !Ref RDSDBStorageType
+      StorageEncrypted: True
+      AllocatedStorage: !Ref RDSDBAllocatedStorage
+      Engine: postgres
+      EngineVersion: 11
+      DBName: pacsdb
+      MasterUsername: !Ref RDSDBUserName
+      MasterUserPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref RDSDatabaseSecret, ':SecretString:password}}' ]]
+      PubliclyAccessible: False
+      MultiAZ: !Ref IsDBMultiAZ
+      Tags:
+        - Key: project
+          Value: dcm4chee-on-aws
+      VPCSecurityGroups: 
+        - !Ref RDSSecurityGroup
+      DBSubnetGroupName: !Ref DataBaseSubnetGroup
+      BackupRetentionPeriod: !Ref RDSDBBackupRetentionDays
+
+  FileSystem:
+    Type: AWS::EFS::FileSystem
+    DeletionPolicy: Retain       ## or Delete/Snapshot
+    Properties:
+      Encrypted: True
+      BackupPolicy: 
+        Status: !Ref EnableEFSBackup
+      LifecyclePolicies:
+        - TransitionToIA: !Ref EFSStorageInfrequentAcessAfter
+      FileSystemTags:
+        - Key: Name
+          Value: !Ref 'EFSNameTag'
+  StorageAccessPoint:
+    Type: AWS::EFS::AccessPoint
+    Properties:
+      FileSystemId: !Ref FileSystem
+      PosixUser:
+        Gid: "0"
+        Uid: "0"
+      RootDirectory:
+        Path: "/"
+      AccessPointTags:
+        - Key: project
+          Value: dcm4chee-arc-psql
+        - Key: volume
+          Value: storage
+        - Key: Name
+          Value: dcm4chee-arc-psql_storage
+  StorageNFSMountTarget1:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref FileSystem
+      SecurityGroups:
+        - !Ref EFSSecurityGroup
+      SubnetId: !Ref PrivateSubnet1Id
+  StorageNFSMountTarget2:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref FileSystem
+      SecurityGroups:
+        - Ref: EFSSecurityGroup
+      SubnetId: !Ref PrivateSubnet2Id
+
+  DCM4CHEECluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: dcm4chee-arc-psql
+      ClusterSettings:
+        - Name: containerInsights
+          Value:  enabled
+      Tags:
+        - Key: project
+          Value: dcm4chee-arc-psql
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      LoadBalancerAttributes:
+      - Key: load_balancing.cross_zone.enabled
+        Value: "true"
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnet1Id
+        - !Ref PublicSubnet2Id
+      Tags:
+      - Key: project
+        Value: dcm4chee-arc-psql
+      Type: network
+      LoadBalancerAttributes:
+        - Key: access_logs.s3.enabled
+          Value: true
+        - Key: access_logs.s3.bucket
+          Value: !Join
+            - '-'
+            - - !Ref LBAccessLogBucketName
+              - !Ref AWS::AccountId
+              - !Ref AWS::Region
+  LBAccessLogBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join
+            - '-'
+            - - !Ref LBAccessLogBucketName
+              - !Ref AWS::AccountId
+              - !Ref AWS::Region
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  LBAccessLogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties: 
+      Bucket: !Ref LBAccessLogBucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:PutObject'
+            Effect: Allow
+            Resource: 
+              - !Sub '${LBAccessLogBucket.Arn}/*'
+            Principal: 
+              AWS: !FindInMap [RegionELBAccountIdMap, !Ref 'AWS::Region', AccountId]
+          - Action:
+              - 's3:PutObject'
+            Effect: Allow
+            Resource: 
+              - !Sub '${LBAccessLogBucket.Arn}/*'
+            Principal: 
+              Service: delivery.logs.amazonaws.com
+          - Action:
+              - 's3:GetBucketAcl'
+            Effect: Allow
+            Resource: 
+              - !Sub ${LBAccessLogBucket.Arn}
+            Principal: 
+              Service: delivery.logs.amazonaws.com
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/dcm4chee-arc-psql
+
+  ArcService:
+    Type: AWS::ECS::Service
+    DependsOn:
+    - ArcTCP8080Listener
+    - ArcTCP8443Listener
+    - ArcTCP11112Listener
+    - LdapService
+    - KeycloakService
+    - StorageNFSMountTarget1
+    - StorageNFSMountTarget2
+    Properties:
+      Cluster: !GetAtt DCM4CHEECluster.Arn
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DeploymentController:
+        Type: ECS
+      DesiredCount: !Ref NumberofARCHIVEContainers
+      LaunchType: EC2
+      LoadBalancers:
+        - ContainerName: arc
+          ContainerPort: 8080
+          TargetGroupArn: !Ref ArcTCP8080TargetGroup
+        - ContainerName: arc
+          ContainerPort: 8443
+          TargetGroupArn: !Ref ArcTCP8443TargetGroup
+        - ContainerName: arc
+          ContainerPort: 11112
+          TargetGroupArn: !Ref ArcTCP11112TargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - !Ref DefaultSecurityGroup
+          Subnets:
+            - !Ref PrivateSubnet1Id
+            - !Ref PrivateSubnet2Id
+      PropagateTags: SERVICE
+      SchedulingStrategy: REPLICA
+      ServiceRegistries:
+        - RegistryArn: !GetAtt ArcServiceDiscoveryEntry.Arn
+      Tags:
+      - Key: project
+        Value: dcm4chee-arc-psql
+      - Key: service
+        Value: arc
+      TaskDefinition:
+        Ref: ArcTaskDefinition
+  ArcTCP8080Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - ForwardConfig:
+            TargetGroups:
+            - TargetGroupArn:
+                Ref: ArcTCP8080TargetGroup
+          Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 8080
+      Protocol: TCP
+  ArcTCP8080TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 8080
+      Protocol: TCP
+      Tags:
+      - Key: project
+        Value: dcm4chee-arc-psql
+      TargetType: ip
+      VpcId: !Ref ParameterVPCId
+  ArcTCP8443Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - ForwardConfig:
+            TargetGroups:
+            - TargetGroupArn:
+                Ref: ArcTCP8443TargetGroup
+          Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 8443
+      Protocol: TCP
+  ArcTCP8443TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 8443
+      Protocol: TCP
+      Tags:
+      - Key: project
+        Value: dcm4chee-arc-psql
+      TargetType: ip
+      VpcId: !Ref ParameterVPCId
+  ArcTCP11112Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - ForwardConfig:
+            TargetGroups:
+            - TargetGroupArn: !Ref ArcTCP11112TargetGroup
+          Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 11112
+      Protocol: TCP
+  ArcTCP11112TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckPort: 8080
+      Port: 11112
+      Protocol: TCP
+      Tags:
+      - Key: project
+        Value: dcm4chee-arc-psql
+      TargetType: ip
+      VpcId: !Ref ParameterVPCId
+  ArcTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn:
+      - RDSInstance
+    Properties:
+      ContainerDefinitions:
+      - Command:
+        - !Sub ${AWS::Region}.compute.internal
+        - dcm4chee-arc-psql.local
+        Essential: false
+        Image: docker/ecs-searchdomain-sidecar:1.0
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: dcm4chee-arc-psql
+        Name: Arc_ResolvConf_InitContainer
+      - DependsOn:
+        - Condition: SUCCESS
+          ContainerName: Arc_ResolvConf_InitContainer
+        Environment:
+        - Name: JAVA_OPTS
+          Value: -Xms256m -Xmx2048m -XX:MetaspaceSize=256M -XX:MaxMetaspaceSize=2048m
+            -Djava.net.preferIPv4Stack=true -agentlib:jdwp=transport=dt_socket,address=*:8787,server=y,suspend=n
+        - Name: POSTGRES_HOST
+          Value: !GetAtt 'RDSInstance.Endpoint.Address'
+        - Name: POSTGRES_PORT
+          Value: !GetAtt 'RDSInstance.Endpoint.Port'
+        - Name: POSTGRES_DB
+          Value: pacsdb
+        - Name: POSTGRES_PASSWORD
+          Value: !Join ['', ['{{resolve:secretsmanager:', !Ref RDSDatabaseSecret, ':SecretString:password}}' ]]
+        - Name: POSTGRES_USER
+          Value: !Ref RDSDBUserName
+        - Name: STORAGE_DIR
+          Value: /storage/fs1
+        - Name: WILDFLY_ADMIN_PASSWORD
+          Value: !Ref AdminPASSWORD
+        - Name: WILDFLY_ADMIN_USER
+          Value: !Ref AdminUSER
+        - Name: WILDFLY_WAIT_FOR
+          Value: ldap.dcm4chee-arc-psql.local:389
+        - Name: LDAP_URL
+          Value: ldap://ldap.dcm4chee-arc-psql.local:389
+        - Name: AUTH_SERVER_URL
+          Value: !GetAtt DNSNameToLowerCase.OutputString
+        Essential: true
+        Image: dcm4che/dcm4chee-arc-psql:5.23.1-secure
+        LinuxParameters: {}
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: dcm4chee-arc-psql
+        MountPoints:
+        - ContainerPath: /storage
+          SourceVolume: storage
+        Name: arc
+        PortMappings:
+        - ContainerPort: 8080
+          HostPort: 8080
+          Protocol: tcp
+        - ContainerPort: 8443
+          HostPort: 8443
+          Protocol: tcp
+        - ContainerPort: 9990
+          HostPort: 9990
+          Protocol: tcp
+        - ContainerPort: 9993
+          HostPort: 9993
+          Protocol: tcp
+        - ContainerPort: 8787
+          HostPort: 8787
+          Protocol: tcp
+        - ContainerPort: 2762
+          HostPort: 2762
+          Protocol: tcp
+        - ContainerPort: 2575
+          HostPort: 2575
+          Protocol: tcp
+        - ContainerPort: 12575
+          HostPort: 12575
+          Protocol: tcp
+        - ContainerPort: 11112
+          HostPort: 11112
+          Protocol: tcp
+      Cpu: !Ref ArchiveContainerCPU
+      Memory: !Ref ArchiveContainerMemory
+      ExecutionRoleArn:
+        Ref: ArcTaskExecutionRole
+      Family: dcm4chee-arc-psql-arc
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - EC2
+      TaskRoleArn: !Ref ArcTaskRole
+      Volumes:
+        - Name: storage
+          EFSVolumeConfiguration:
+            AuthorizationConfig:
+              AccessPointId: !Ref StorageAccessPoint
+              IAM: ENABLED
+            FilesystemId: !Ref FileSystem
+            TransitEncryption: ENABLED
+  ArcTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Condition: {}
+          Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Tags:
+      - Key: project
+        Value: dcm4chee-arc-psql
+      - Key: service
+        Value: arc
+  ArcTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Condition: {}
+          Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+        Version: 2012-10-17
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - elasticfilesystem:ClientMount
+            - elasticfilesystem:ClientWrite
+            - elasticfilesystem:ClientRootAccess
+            Condition:
+              StringEquals:
+                elasticfilesystem:AccessPointArn:
+                  Ref: StorageAccessPoint
+            Effect: Allow
+            Principal: {}
+            Resource:
+            - !GetAtt 'FileSystem.Arn'
+          Version: 2012-10-17
+        PolicyName: ArcStorageVolumeMountPolicy
+      Tags:
+      - Key: project
+        Value: dcm4chee-arc-psql
+      - Key: service
+        Value: arc
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn:
+      - StorageNFSMountTarget1
+      - StorageNFSMountTarget2
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet1Id
+        - !Ref PrivateSubnet2Id
+      LaunchConfigurationName: !Ref 'ContainerInstances'
+      MinSize: '1'
+      MaxSize: '4'
+      DesiredCapacity: !Ref EC2InstanceCount
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: 'true'
+  ContainerInstances:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !FindInMap [AWSRegionToAMI, !Ref 'AWS::Region', AMIID]
+      SecurityGroups:
+            - !Ref DefaultSecurityGroup
+      InstanceType: !Ref 'InstanceType'
+      IamInstanceProfile: !Ref 'EC2InstanceProfile'
+      KeyName: !Ref 'KeyName'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          echo ECS_CLUSTER=${DCM4CHEECluster} >> /etc/ecs/ecs.config
+          yum install -y aws-cfn-bootstrap bzip2 unzip git jq wget telnet java-11-amazon-corretto-headless
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+          amazon-linux-extras install postgresql11 -y
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"  
+          unzip awscliv2.zip  
+          ./aws/install
+          git clone https://github.com/dcm4che-dockerfiles/postgres-dcm4chee.git
+          password=`aws secretsmanager get-secret-value --secret-id ${RDSDatabaseSecret} --query SecretString --output text | jq -r .password`
+          PGPASSWORD=$password psql -h ${RDSInstance.Endpoint.Address} -U ${RDSDBUserName} -d pacsdb < postgres-dcm4chee/docker-entrypoint-initdb.d/10_create-psql.sql
+          PGPASSWORD=$password psql -h ${RDSInstance.Endpoint.Address} -U ${RDSDBUserName} -d pacsdb < postgres-dcm4chee/docker-entrypoint-initdb.d/20_create-fk-index.sql
+          PGPASSWORD=$password psql -h ${RDSInstance.Endpoint.Address} -U ${RDSDBUserName} -d pacsdb < postgres-dcm4chee/docker-entrypoint-initdb.d/30_create-case-insensitive-index.sql
+          wget https://sourceforge.net/projects/dcm4che/files/dcm4che3/5.23.2/dcm4che-5.23.2-bin.zip -P /tmp
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+      Tags:
+      - Key: project
+        Value: dcm4chee-arc-psql
+      - Key: service
+        Value: arc
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles: [!Ref 'EC2Role']
+
+  # tranform to lower case
+  LowerCaseLambda:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: Returns the lowercase version of a string
+      MemorySize: 256
+      Runtime: python3.8
+      Handler: index.lambda_handler
+      Role: !GetAtt LowerCaseLambdaRole.Arn
+      Timeout: 30
+      Code:
+        ZipFile: |
+          import cfnresponse
+
+          def lambda_handler(event, context):                                                    
+              output = event['ResourceProperties'].get('InputString', '').lower()                
+              responseData = {'OutputString': output}                                            
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)                
+
+  LowerCaseLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: "lambda-write-logs"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "arn:aws:logs:*:*"
+
+  DNSNameToLowerCase:
+    Type: Custom::Lowercase
+    Properties:
+      ServiceToken: !GetAtt LowerCaseLambda.Arn
+      InputString: !Sub 'https://${LoadBalancer.DNSName}:8843/auth'
+      
+
+  LdapService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - LdapTCP389Listener
+    Properties:
+      Cluster: !GetAtt DCM4CHEECluster.Arn
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DeploymentController:
+        Type: ECS
+      DesiredCount: !Ref NumberofLDAPContainers
+      LaunchType: FARGATE
+      LoadBalancers:
+      - ContainerName: ldap
+        ContainerPort: 389
+        TargetGroupArn: !Ref LdapTCP389TargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref DefaultSecurityGroup
+          Subnets:
+            - !Ref PrivateSubnet1Id
+            - !Ref PrivateSubnet2Id
+      PropagateTags: SERVICE
+      SchedulingStrategy: REPLICA
+      ServiceRegistries:
+        - RegistryArn: !GetAtt LdapServiceDiscoveryEntry.Arn
+      Tags:
+      - Key: project
+        Value: dcm4chee-arc-psql
+      - Key: service
+        Value: ldap
+      TaskDefinition:
+        Ref: LdapTaskDefinition
+  LdapTCP389Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - ForwardConfig:
+            TargetGroups:
+            - TargetGroupArn:
+                Ref: LdapTCP389TargetGroup
+          Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 389
+      Protocol: TCP
+  LdapTCP389TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 389
+      Protocol: TCP
+      Tags:
+        - Key: project
+          Value: dcm4chee-arc-psql
+      TargetType: ip
+      VpcId: !Ref ParameterVPCId
+  LdapTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+      - Command:
+        - !Sub ${AWS::Region}.compute.internal
+        - dcm4chee-arc-psql.local
+        Essential: false
+        Image: docker/ecs-searchdomain-sidecar:1.0
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: dcm4chee-arc-psql
+        Name: Ldap_ResolvConf_InitContainer
+      - DependsOn:
+        - Condition: SUCCESS
+          ContainerName: Ldap_ResolvConf_InitContainer
+        Environment:
+          - Name: POSTGRES_HOST
+            Value: !GetAtt 'RDSInstance.Endpoint.Address'
+          - Name: POSTGRES_PORT
+            Value: !GetAtt 'RDSInstance.Endpoint.Port'
+          - Name: POSTGRES_DB
+            Value: pacsdb
+          - Name: POSTGRES_PASSWORD
+            Value: !Join ['', ['{{resolve:secretsmanager:', !Ref RDSDatabaseSecret, ':SecretString:password}}' ]]
+          - Name: POSTGRES_USER
+            Value: !Ref RDSDBUserName
+          - Name: STORAGE_DIR
+            Value: /storage/fs1
+        Essential: true
+        Image: dcm4che/slapd-dcm4chee:2.4.56-23.1
+        LinuxParameters: {}
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: dcm4chee-arc-psql
+        Name: ldap
+        PortMappings:
+        - ContainerPort: 389
+          HostPort: 389
+          Protocol: tcp
+        - ContainerPort: 636
+          HostPort: 636
+          Protocol: tcp
+      Cpu: !Ref LDAPContainerCPU
+      Memory: !Ref LDAPContainerMemory
+      ExecutionRoleArn:
+        Ref: LdapTaskExecutionRole
+      Family: dcm4chee-arc-psql-ldap
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+      - FARGATE
+  LdapTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Condition: {}
+          Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Tags:
+      - Key: project
+        Value: dcm4chee-arc-psql
+      - Key: service
+        Value: ldap
+
+  KeycloakService:
+    Type: AWS::ECS::Service
+    DependsOn:
+    - KeycloakTCP8880Listener
+    - KeycloakTCP8843Listener
+    - KeycloakTCP8990Listener
+    - KeycloakTCP8993Listener
+    - LdapService
+    Properties:
+      Cluster: !GetAtt DCM4CHEECluster.Arn
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DeploymentController:
+        Type: ECS
+      DesiredCount: 1
+      LaunchType: EC2
+      LoadBalancers:
+      - ContainerName: keycloak
+        ContainerPort: 8880
+        TargetGroupArn:
+          Ref: KeycloakTCP8880TargetGroup
+      - ContainerName: keycloak
+        ContainerPort: 8843
+        TargetGroupArn:
+          Ref: KeycloakTCP8843TargetGroup
+      - ContainerName: keycloak
+        ContainerPort: 8990
+        TargetGroupArn:
+          Ref: KeycloakTCP8990TargetGroup
+      - ContainerName: keycloak
+        ContainerPort: 8993
+        TargetGroupArn:
+          Ref: KeycloakTCP8993TargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - !Ref DefaultSecurityGroup
+          Subnets:
+            - !Ref PrivateSubnet1Id
+            - !Ref PrivateSubnet2Id
+      PropagateTags: SERVICE
+      SchedulingStrategy: REPLICA
+      ServiceRegistries:
+      - RegistryArn: !GetAtt KeycloakServiceDiscoveryEntry.Arn
+      Tags:
+        - Key: project
+          Value: dcm2chee-aws
+        - Key: service
+          Value: keycloak
+      TaskDefinition: !Ref KeycloakTaskDefinition
+  KeycloakTCP8843Listener:
+    Properties:
+      DefaultActions:
+      - ForwardConfig:
+          TargetGroups:
+          - TargetGroupArn:
+              Ref: KeycloakTCP8843TargetGroup
+        Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 8843
+      Protocol: TCP
+    Type: AWS::ElasticLoadBalancingV2::Listener
+  KeycloakTCP8843TargetGroup:
+    Properties:
+      Port: 8843
+      Protocol: TCP
+      Tags:
+      - Key: com.docker.compose.project
+        Value: dcm2chee-aws
+      TargetType: ip
+      VpcId: !Ref ParameterVPCId
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  KeycloakTCP8880Listener:
+    Properties:
+      DefaultActions:
+      - ForwardConfig:
+          TargetGroups:
+          - TargetGroupArn:
+              Ref: KeycloakTCP8880TargetGroup
+        Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 8880
+      Protocol: TCP
+    Type: AWS::ElasticLoadBalancingV2::Listener
+  KeycloakTCP8880TargetGroup:
+    Properties:
+      Port: 8880
+      Protocol: TCP
+      Tags:
+      - Key: com.docker.compose.project
+        Value: dcm2chee-aws
+      TargetType: ip
+      VpcId: !Ref ParameterVPCId
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  KeycloakTCP8990Listener:
+    Properties:
+      DefaultActions:
+      - ForwardConfig:
+          TargetGroups:
+          - TargetGroupArn:
+              Ref: KeycloakTCP8990TargetGroup
+        Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 8990
+      Protocol: TCP
+    Type: AWS::ElasticLoadBalancingV2::Listener
+  KeycloakTCP8990TargetGroup:
+    Properties:
+      Port: 8990
+      Protocol: TCP
+      Tags:
+      - Key: com.docker.compose.project
+        Value: dcm2chee-aws
+      TargetType: ip
+      VpcId: !Ref ParameterVPCId
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  KeycloakTCP8993Listener:
+    Properties:
+      DefaultActions:
+      - ForwardConfig:
+          TargetGroups:
+          - TargetGroupArn:
+              Ref: KeycloakTCP8993TargetGroup
+        Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 8993
+      Protocol: TCP
+    Type: AWS::ElasticLoadBalancingV2::Listener
+  KeycloakTCP8993TargetGroup:
+    Properties:
+      Port: 8993
+      Protocol: TCP
+      Tags:
+      - Key: project
+        Value: dcm2chee-aws
+      TargetType: ip
+      VpcId: !Ref ParameterVPCId
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  KeycloakTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+      - Command:
+        - !Sub ${AWS::Region}.compute.internal
+        - dcm2chee-aws.local
+        Essential: false
+        Image: docker/ecs-searchdomain-sidecar:1.0
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: dcm2chee-aws
+        Name: Keycloak_ResolvConf_InitContainer
+      - DependsOn:
+        - Condition: SUCCESS
+          ContainerName: Keycloak_ResolvConf_InitContainer
+        Environment:
+        - Name: JAVA_OPTS
+          Value: -server -Xms256m -Xmx2048m -XX:MetaspaceSize=256M -XX:MaxMetaspaceSize=2048m -Djava.net.preferIPv4Stack=true -Djboss.modules.system.pkgs=org.jboss.byteman -Djava.awt.headless=true --add-exports=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=jdk.unsupported/sun.misc=ALL-UNNAMED --add-exports=jdk.unsupported/sun.reflect=ALL-UNNAMED
+        - Name: HTTPS_PORT
+          Value: "8843"
+        - Name: HTTP_PORT
+          Value: "8880"
+        - Name: MANAGEMENT_HTTPS_PORT
+          Value: "8993"
+        - Name: MANAGEMENT_HTTP_PORT
+          Value: "8990"
+        - Name: KEYCLOAK_WAIT_FOR
+          Value: ldap.dcm4chee-arc-psql.local:389
+        - Name: LDAP_URL
+          Value: ldap://ldap.dcm4chee-arc-psql.local:389
+        Essential: true
+        Image: dcm4che/keycloak:11.0.3
+        LinuxParameters: {}
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: dcm2chee-aws
+        Name: keycloak
+        PortMappings:
+        - ContainerPort: 8880
+          HostPort: 8880
+          Protocol: tcp
+        - ContainerPort: 8843
+          HostPort: 8843
+          Protocol: tcp
+        - ContainerPort: 8990
+          HostPort: 8990
+          Protocol: tcp
+        - ContainerPort: 8993
+          HostPort: 8993
+          Protocol: tcp
+      Cpu: !Ref KeycloakContainerCPU
+      Memory: !Ref KeycloakContainerMemory
+      ExecutionRoleArn:
+        Ref: KeycloakTaskExecutionRole
+      Family: dcm2chee-aws-keycloak
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - EC2
+  KeycloakTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Condition: {}
+          Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Tags:
+      - Key: project
+        Value: dcm2chee-aws
+      - Key: service
+        Value: keycloak
+
+Outputs:
+  HTTPEndpoint:
+    Description: The HTTP endpoint for Dcm4Chee
+    Value: !Join
+      - ''
+      - - 'http://'
+        - !GetAtt LoadBalancer.DNSName
+        - ':8080/dcm4chee-arc/ui2'
+  HTTPSEndpoint:
+    Description: The HTTPS endpoint for Dcm4Chee
+    Value: !Join
+      - ''
+      - - 'https://'
+        - !GetAtt LoadBalancer.DNSName
+        - ':8443/dcm4chee-arc/ui2'
+  AuthHTTPEndpoint:
+    Description: The HTTP endpoint for Keycloak
+    Value: !Join
+      - ''
+      - - 'http://'
+        - !GetAtt LoadBalancer.DNSName
+        - ':8880/auth/admin/dcm4che/console'
+  AuthHTTPSEndpoint:
+    Description: The HTTPS endpoint for Keycloak
+    Value: !Join
+      - ''
+      - - 'https://'
+        - !GetAtt LoadBalancer.DNSName
+        - ':8843/auth/admin/dcm4che/console'
