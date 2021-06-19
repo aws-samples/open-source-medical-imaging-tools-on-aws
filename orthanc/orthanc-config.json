@@ -56,7 +56,7 @@
         },
         {
             "ParameterKey": "KeyName",
-            "ParameterValue": ""
+            "ParameterValue": "fargate"
         },
         {
             "ParameterKey": "InstanceType",

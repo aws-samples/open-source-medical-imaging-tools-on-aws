@@ -60,15 +60,15 @@ Metadata:
 
 Parameters:
   Namespace:
-    Description: A string of 4-20 letters and digits, starting with a letter. Included in resource names, allowing multiple deployments 
+    Description: A string of 4-20 lowercase letters and digits, starting with a letter. Included in resource names, allowing multiple deployments.
     Default: orthanc
     Type: String
-    AllowedPattern: "^[a-zA-Z]{1}[a-zA-Z0-9]{3,19}$"
+    AllowedPattern: "^[a-z]{1}[a-z0-9]{3,19}$"
     ConstraintDescription: Between 4-20 letters and digits, starting with a letter
   ContainerOnEC2:
     Type: String 
     Default: Y 
-    Description: will the containers be hosted on ECS EC2 or Fargate
+    Description: Will the containers be hosted on ECS EC2? Y = EC2, N = Fargate
     AllowedValues: [Y, N]
   ExistingHostedZoneId:
     Description: (Optional) Existing HostedZone for Registered Domain used for ACM Certificate.  Leave blank to deploy solution without TLS.
@@ -110,7 +110,8 @@ Parameters:
     ConstraintDescription: Must be a bucket name respecting S3 bucket naming conventions
   KeyName:
     Type: String
-    Description: (Optional, only for EC2 hosts) Name of an existing EC2 KeyPair to enable SSH access to the ECS instances.
+    AllowedPattern: "^.{1,255}$"
+    Description: (Optional, only for EC2 hosts) Name of an existing EC2 KeyPair to enable SSH access to the ECS instances.  For Fargate, use 'fargate'.
   InstanceType:
     Description: (Optional, only for EC2 hosts) EC2 instance type.
     Type: String
