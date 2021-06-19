@@ -2,7 +2,7 @@
 
 ```
 make init
-pytest -s test_orthanc_rest_api.py --url <url> --port <port> --user <user> --password <password>
+pytest -s test_orthanc.py --url <url> --port <port> --user <user> --password <password>
 ```
 
 ## Description

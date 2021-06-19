@@ -1,45 +1,45 @@
 {
-    "StackName": "",
-    "TemplateURL": "https://orthanc-on-aws.s3.amazonaws.com/latest/orthanc-rds-template.yaml",
+    "Capabilities": [
+        "CAPABILITY_AUTO_EXPAND",
+        "CAPABILITY_NAMED_IAM"
+    ],
+    "EnableTerminationProtection": false,
+    "OnFailure": "DO_NOTHING",
     "Parameters": [
         {
-            "ParameterKey": "Namespace",
-            "ParameterValue": "orthanc"
+            "ParameterKey": "ContainerImageUrl",
+            "ParameterValue": "osimis/orthanc"
         },
         {
             "ParameterKey": "ContainerOnEC2",
             "ParameterValue": "N"
         },
         {
-            "ParameterKey": "ContainerImageUrl",
-            "ParameterValue": "osimis/orthanc"
+            "ParameterKey": "EFSStorageInfrequentAcessAfter",
+            "ParameterValue": "AFTER_90_DAYS"
         },
         {
-            "ParameterKey": "PublicSubnet1Id",
-            "ParameterValue": ""
+            "ParameterKey": "EnableDICOMWebPlugin",
+            "ParameterValue": "Y"
         },
         {
-            "ParameterKey": "PublicSubnet2Id",
-            "ParameterValue": ""
+            "ParameterKey": "EnableEFSBackup",
+            "ParameterValue": "ENABLED"
         },
         {
-            "ParameterKey": "PrivateSubnet1Id",
-            "ParameterValue": ""
+            "ParameterKey": "EnableOrthancWebViewerPlugin",
+            "ParameterValue": "N"
         },
         {
-            "ParameterKey": "PrivateSubnet2Id",
-            "ParameterValue": ""
-        },
-        {
-            "ParameterKey": "ParameterVPCId",
-            "ParameterValue": ""
-        },
-        {
-            "ParameterKey": "SecurityGroupIngressCIDR",
-            "ParameterValue": "0.0.0.0/0"
+            "ParameterKey": "EnableStoneWebViewerPlugin",
+            "ParameterValue": "N"
         },
         {
             "ParameterKey": "ExistingHostedZoneId",
+            "ParameterValue": ""
+        },
+        {
+            "ParameterKey": "ExistingLogBucketName",
             "ParameterValue": ""
         },
         {
@@ -47,27 +47,27 @@
             "ParameterValue": ""
         },
         {
-            "ParameterKey": "UseExistingLogBucket",
-            "ParameterValue": "No"
+            "ParameterKey": "InstanceType",
+            "ParameterValue": "m4.large"
         },
         {
-            "ParameterKey": "ExistingLogBucketName",
-            "ParameterValue": ""
+            "ParameterKey": "IsDBMultiAZ",
+            "ParameterValue": "False"
         },
         {
             "ParameterKey": "KeyName",
             "ParameterValue": "fargate"
         },
         {
-            "ParameterKey": "InstanceType",
-            "ParameterValue": "m4.large"
-        },
-        {
-            "ParameterKey": "NumberofEC2Instances",
-            "ParameterValue": "1"
+            "ParameterKey": "Namespace",
+            "ParameterValue": "orthanc"
         },
         {
             "ParameterKey": "NumberofContainers",
+            "ParameterValue": "1"
+        },
+        {
+            "ParameterKey": "NumberofEC2Instances",
             "ParameterValue": "1"
         },
         {
@@ -79,6 +79,42 @@
             "ParameterValue": "4096"
         },
         {
+            "ParameterKey": "OrthancPassword",
+            "ParameterValue": "orthanc"
+        },
+        {
+            "ParameterKey": "OrthancUser",
+            "ParameterValue": "orthanc"
+        },
+        {
+            "ParameterKey": "ParameterVPCId",
+            "ParameterValue": ""
+        },
+        {
+            "ParameterKey": "PrivateSubnet1Id",
+            "ParameterValue": ""
+        },
+        {
+            "ParameterKey": "PrivateSubnet2Id",
+            "ParameterValue": ""
+        },
+        {
+            "ParameterKey": "PublicSubnet1Id",
+            "ParameterValue": ""
+        },
+        {
+            "ParameterKey": "PublicSubnet2Id",
+            "ParameterValue": ""
+        },
+        {
+            "ParameterKey": "RDSDBAllocatedStorage",
+            "ParameterValue": "20"
+        },
+        {
+            "ParameterKey": "RDSDBBackupRetentionDays",
+            "ParameterValue": "30"
+        },
+        {
             "ParameterKey": "RDSDBInstanceClass",
             "ParameterValue": "db.t3.medium"
         },
@@ -87,60 +123,24 @@
             "ParameterValue": "gp2"
         },
         {
-            "ParameterKey": "RDSDBAllocatedStorage",
-            "ParameterValue": "20"
-        },
-        {
-            "ParameterKey": "OrthancUser",
-            "ParameterValue": "orthanc"
-        },
-        {
-            "ParameterKey": "OrthancPassword",
-            "ParameterValue": "orthanc"
-        },
-        {
-            "ParameterKey": "IsDBMultiAZ",
-            "ParameterValue": "False"
-        },
-        {
-            "ParameterKey": "RDSDBBackupRetentionDays",
-            "ParameterValue": "30"
-        },
-        {
             "ParameterKey": "RDSDBUserName",
             "ParameterValue": "postgres"
         },
         {
-            "ParameterKey": "EnableEFSBackup",
-            "ParameterValue": "ENABLED"
+            "ParameterKey": "SecurityGroupIngressCIDR",
+            "ParameterValue": "0.0.0.0/0"
         },
         {
-            "ParameterKey": "EFSStorageInfrequentAcessAfter",
-            "ParameterValue": "AFTER_90_DAYS"
-        },
-        {
-            "ParameterKey": "EnableDICOMWebPlugin",
-            "ParameterValue": "Y"
-        },
-        {
-            "ParameterKey": "EnableOrthancWebViewerPlugin",
-            "ParameterValue": "N"
-        },
-        {
-            "ParameterKey": "EnableStoneWebViewerPlugin",
-            "ParameterValue": "N"
+            "ParameterKey": "UseExistingLogBucket",
+            "ParameterValue": "No"
         }
-        ],
-    "Capabilities": [
-        "CAPABILITY_AUTO_EXPAND",
-        "CAPABILITY_NAMED_IAM"
     ],
-    "OnFailure": "DO_NOTHING",
+    "StackName": "210619_192406",
     "Tags": [
         {
             "Key": "deployment",
             "Value": ""
         }
     ],
-    "EnableTerminationProtection": false
+    "TemplateURL": "https://orthanc-on-aws.s3.amazonaws.com/latest/orthanc-rds-template.yaml"
 }
