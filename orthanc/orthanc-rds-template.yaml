@@ -353,7 +353,6 @@ Resources:
   RDSInstance:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Snapshot
-    UpdateReplacePolicy: Snapshot
     Properties:
       DBInstanceIdentifier: !Sub "${Namespace}-orthanc-instance"
       DBName: !Sub "${Namespace}OrthancDB"
@@ -362,7 +361,7 @@ Resources:
       StorageEncrypted: True
       AllocatedStorage: !Ref RDSDBAllocatedStorage
       Engine: postgres
-      EngineVersion: '11'
+      EngineVersion: 11
       MasterUsername: !Ref RDSDBUserName
       MasterUserPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref RDSDatabaseSecret, ':SecretString:password}}' ]]
       PubliclyAccessible: False
@@ -482,7 +481,7 @@ Resources:
       Type: network
       LoadBalancerAttributes:
         - Key: access_logs.s3.enabled
-          Value: 'true'
+          Value: true
         - Key: access_logs.s3.bucket
           Value: !GetAtt LogBucketName.Value
 
@@ -502,7 +501,6 @@ Resources:
     Type: AWS::S3::Bucket
     Condition: CreateBucket
     Properties:
-      AccessControl: LogDeliveryWrite
       BucketName: !GetAtt LogBucketName.Value
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -532,9 +530,6 @@ Resources:
             Resource: !Sub '${NewLogBucket.Arn}/*'
             Principal: 
               Service: delivery.logs.amazonaws.com
-            Condition:
-              StringEquals:
-                s3:x-amz-acl: bucket-owner-full-control
           - Action:
               - 's3:GetBucketAcl'
             Effect: Allow
@@ -568,6 +563,9 @@ Resources:
 
   OrthancService:
     Type: AWS::ECS::Service
+    # DependsOn:
+    #   - !If [UseDomain, 'OrthancTCP8042HTTPSListener', 'OrthancTCP8042HTTPListener']
+    #   - OrthancTCP4242Listener
     Properties:
       Cluster: !Ref ECSCluster
       DeploymentConfiguration:
@@ -805,7 +803,7 @@ Resources:
         Timeout: PT15M
     UpdatePolicy:
       AutoScalingReplacingUpdate:
-        WillReplace: true
+        WillReplace: 'true'
 
   ContainerInstances:
     Type: AWS::AutoScaling::LaunchConfiguration
